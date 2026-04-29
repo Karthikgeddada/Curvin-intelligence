@@ -1,7 +1,10 @@
 import streamlit as st
 import json
 import os
+from dotenv import load_dotenv
 from ai_analyst import MarketAnalyst
+
+load_dotenv(override=True)
 
 st.set_page_config(page_title="AI Analyst Report", page_icon="📋", layout="wide")
 
@@ -53,13 +56,11 @@ with st.sidebar:
         st.session_state.pop("current_report", None)
 
 # ── Parse API Keys ────────────────────────────────────────────────────────────
-GROQ_API_KEYS = [k.strip() for k in raw_keys.strip().splitlines() if k.strip()]
-if not GROQ_API_KEYS:
-    # Fall back to environment variable if set
-    env_key = os.environ.get("GROQ_API_KEY", "")
-    GROQ_API_KEYS = [env_key] if env_key else ["PLACEHOLDER_KEY"]
+# Load API keys directly from environment variables (background)
+env_key = os.environ.get("GROQ_API_KEY", "")
+GROQ_API_KEYS = [env_key] if env_key else []
 
-analyst_engine = MarketAnalyst(GROQ_API_KEYS)
+analyst_engine = MarketAnalyst(GROQ_API_KEYS) if GROQ_API_KEYS else None
 
 # ── Main Report UI ────────────────────────────────────────────────────────────
 st.title("📋 AI Institutional Analyst Report")
@@ -72,12 +73,21 @@ if has_data:
     articles = df[["title", "description"]].head(15).to_dict("records")
 
     if generate_btn:
-        with st.spinner(f"🧠 Synthesizing institutional intelligence for **{industry}**..."):
-            report = analyst_engine.generate_sector_report(industry, articles)
-            st.session_state.current_report = report
+        if not GROQ_API_KEYS:
+            st.error("⚠️ **Groq API Key not found.** Please set `GROQ_API_KEY` in your `.env` file in the project background.")
+        else:
+            with st.spinner(f"🧠 Synthesizing institutional intelligence for **{industry}**..."):
+                report = analyst_engine.generate_sector_report(industry, articles)
+                st.session_state.current_report = report
 
     if "current_report" in st.session_state:
         report = st.session_state.current_report
+
+        if report.get("overall_sentiment") == "Error generating report":
+            error_msg = report.get("key_drivers", ["Unknown error"])[0]
+            st.error(f"❌ **API Error:** {error_msg}")
+            st.info("💡 **Tip:** It looks like there is an issue with your Groq API account (e.g., rate limit, invalid key, or organization restriction). Please check your Groq dashboard.")
+            st.stop()
 
         # ── SENTIMENT BANNER ─────────────────────────────────────────────────
         sentiment_raw = report.get("overall_sentiment", "N/A")

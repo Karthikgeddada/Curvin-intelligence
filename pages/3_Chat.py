@@ -1,6 +1,9 @@
 import streamlit as st
 import os
+from dotenv import load_dotenv
 from chat_with_news import NewsChat
+
+load_dotenv(override=True)
 
 st.set_page_config(page_title="Chat with Market News", page_icon="💬", layout="wide")
 
@@ -28,12 +31,9 @@ with st.sidebar:
     st.header("⚙️ Intelligence Controls")
     
     st.markdown("---")
-    raw_keys = ""
-    
-    GROQ_API_KEYS = [k.strip() for k in raw_keys.strip().splitlines() if k.strip()]
-    if not GROQ_API_KEYS:
-        env_key = os.environ.get("GROQ_API_KEY", "")
-        GROQ_API_KEYS = [env_key] if env_key else ["PLACEHOLDER_KEY"]
+    # Load API keys directly from environment variables (background)
+    env_key = os.environ.get("GROQ_API_KEY", "")
+    GROQ_API_KEYS = [env_key] if env_key else []
     
     clear_chat = st.button("🗑 Clear Chat History")
 
@@ -41,7 +41,7 @@ with st.sidebar:
 if "chat_history" not in st.session_state or clear_chat:
     st.session_state.chat_history = []
 
-chat_module = NewsChat(GROQ_API_KEYS)
+chat_module = NewsChat(GROQ_API_KEYS) if GROQ_API_KEYS else None
 
 # ── Main Chat UI ─────────────────────────────────────────────────────────────
 st.title("💬 Chat with News Intelligence")
@@ -67,11 +67,15 @@ if "dashboard_data" in st.session_state:
             
         # Generate AI response
         with st.chat_message("assistant"):
-            with st.spinner("🧠 Querying intelligence context..."):
-                # Pass the top 20 articles as the grounded context
-                articles = df[['title', 'description']].head(20).to_dict('records')
-                response = chat_module.handle_query(prompt, articles)
+            if not GROQ_API_KEYS:
+                response = "⚠️ **Groq API Key not found.** Please set `GROQ_API_KEY` in your `.env` file in the project background."
                 st.markdown(response)
+            else:
+                with st.spinner("🧠 Querying intelligence context..."):
+                    # Pass the top 20 articles as the grounded context
+                    articles = df[['title', 'description']].head(20).to_dict('records')
+                    response = chat_module.handle_query(prompt, articles)
+                    st.markdown(response)
                 
         # Add assistant message to state
         st.session_state.chat_history.append({"role": "assistant", "content": response})
