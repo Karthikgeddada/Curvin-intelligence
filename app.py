@@ -2,7 +2,7 @@ import streamlit as st
 
 # ── Page Config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
-    page_title="Corvin Intelligence | Market AI Platform",
+    page_title="Curvin Intelligence | Market AI Platform",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
